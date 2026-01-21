@@ -13,6 +13,8 @@ langchain-anthropic
 langchain-google-genai
 google-generativeai
 
+
+
 # Hugging Face Integration
 langchain-huggingface
 transformers
@@ -20,6 +22,8 @@ huggingface-hub
 sentence-transformers
 # Environment Variable Management
 python-dotenv
+ddgs
+
 
 # Machine Learning Utilities
 numpy
