@@ -5,79 +5,139 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from ddgs import DDGS
+# LLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Initialize LLM
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+# Tools
+from langchain_community.tools import DuckDuckGoSearchRun, WikipediaQueryRun, ArxivQueryRun
+from langchain_community.utilities import WikipediaAPIWrapper, ArxivAPIWrapper
+from langchain_core.tools import Tool
 
+
+# -------------------- LLM --------------------
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0
+)
+
+# -------------------- INPUT MODEL --------------------
 
 class WorkflowInput(BaseModel):
     query: str
 
+# -------------------- TOOLS SETUP --------------------
 
-def web_search(query: str) -> str:
-    try:
-        results = DDGS().text(query, max_results=5)
-        if not results:
-            return "No research data found."
-        bodies = [res.get("body", "") for res in results if "body" in res]
-        return "\n\n".join(bodies) if bodies else "No readable body found."
-    except Exception as e:
-        return f"Search failed due to error: {str(e)}"
+# DuckDuckGo
+search_tool = DuckDuckGoSearchRun()
 
+# Wikipedia
+wiki_wrapper = WikipediaAPIWrapper(
+    top_k_results=1,
+    doc_content_chars_max=1500
+)
+wiki_tool = WikipediaQueryRun(api_wrapper=wiki_wrapper)
+
+# arXiv
+arxiv_wrapper = ArxivAPIWrapper(
+    top_k_results=2,
+    doc_content_chars_max=2000
+)
+arxiv_tool = ArxivQueryRun(api_wrapper=arxiv_wrapper)
+
+# (Tool list kept for clarity / mentor reference)
+tools = [
+    Tool(
+        func=search_tool.run,
+        name="web_search",
+        description="Search the web for current and real-time information."
+    ),
+    Tool(
+        func=wiki_tool.run,
+        name="wikipedia",
+        description="Search Wikipedia for general and historical facts."
+    ),
+    Tool(
+        func=arxiv_tool.run,
+        name="arxiv_research",
+        description="Search academic and scholarly research papers."
+    )
+]
+
+# -------------------- MAIN WORKFLOW --------------------
 
 def run_multi_agent_workflow(workflow_input: WorkflowInput) -> Dict[str, Any]:
     query = workflow_input.query
 
-    # Step 1: Web Research
-    research = web_search(query)
+    # ===== Research Agent =====
+    research_data = []
 
-    # Step 2: Summarization Prompt
+    # DuckDuckGo (most reliable)
+    try:
+        research_data.append(search_tool.run(query))
+    except Exception as e:
+        research_data.append("DuckDuckGo search failed.")
+
+    # Wikipedia (can fail due to API limits)
+    try:
+        research_data.append(wiki_tool.run(query))
+    except Exception:
+        research_data.append("Wikipedia data unavailable.")
+
+    # arXiv
+    try:
+        research_data.append(arxiv_tool.run(query))
+    except Exception:
+        research_data.append("arXiv data unavailable.")
+
+    research_output = "\n\n".join(research_data)
+
+    # ===== Summarizer Agent =====
     summary_prompt = f"""
-Convert the following research notes into structured JSON:
+Convert the following research notes into structured JSON.
 
 Research:
-{research}
+{research_output}
 
-Return JSON EXACTLY like:
+Return JSON EXACTLY in this format:
 {{
-   "executive_summary": "...",
-   "action_items": ["...", "..."]
+  "executive_summary": "...",
+  "action_items": ["...", "..."]
 }}
 """
 
-    summary_result = llm.invoke(summary_prompt)
-    raw_summary = summary_result.content.strip()
+    summary_response = llm.invoke(summary_prompt)
+    raw_summary = summary_response.content.strip()
 
-    # Safe JSON parsing
     try:
         summary_json = json.loads(raw_summary)
-    except:
+    except Exception:
         summary_json = {
             "executive_summary": raw_summary,
             "action_items": []
         }
 
-    # Step 3: Email Generation
+    # ===== Email Agent =====
     email_prompt = f"""
-Write a short professional business email based on this executive summary:
+Write a short professional business email based on the executive summary below.
 
-{summary_json['executive_summary']}
+{summary_json["executive_summary"]}
 
-Return only the email body content without greetings like "Dear" or signatures.
+Return only the email body. No greeting and no signature.
 """
 
-    email_result = llm.invoke(email_prompt)
-    email_body = email_result.content.strip()
+    email_response = llm.invoke(email_prompt)
 
     return {
-        "raw_research": research,
-        "raw_summary": summary_json,
-        "final_email": email_body
+        "raw_research": research_output,
+        "summary": summary_json,
+        "final_email": email_response.content.strip()
     }
 
+# -------------------- TEST --------------------
 
 if __name__ == "__main__":
-    test = run_multi_agent_workflow(WorkflowInput(query="Latest AI trends in India"))
-    print(json.dumps(test, indent=2))
+    result = run_multi_agent_workflow(
+        WorkflowInput(query="Latest AI trends in India")
+    )
+    print(json.dumps(result, indent=2))

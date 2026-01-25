@@ -1,21 +1,21 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List
+from app import run_multi_agent_workflow, WorkflowInput
 
-app = FastAPI()
+app = FastAPI(title="Multi-Agent Research API")
 
-class Order(BaseModel):
-    item_name: str
-    quantity: int
-    price: float
-    is_spicy: bool = False
-    toppings: List[str] = []
 
-@app.post("/place-order")
-async def place_order(order: Order):
-    total_cost = order.quantity * order.price
-    return {
-        "message": f"Order for {order.item_name} placed successfully!",
-        "total_bill": total_cost,
-        "status": "Processing"
-    }
+# ---------- REQUEST MODEL ----------
+class QueryRequest(BaseModel):
+    query: str
+
+
+# ---------- API ENDPOINT ----------
+@app.post("/run-workflow")
+async def run_workflow(request: QueryRequest):
+    """
+    Runs the Research → Summarizer → Email agent workflow
+    """
+    input_data = WorkflowInput(query=request.query)
+    result = run_multi_agent_workflow(input_data)
+    return result

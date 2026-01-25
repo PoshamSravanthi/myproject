@@ -14,7 +14,9 @@ if start:
         st.warning("Please enter a topic before starting.")
     else:
         with st.spinner("Agents are researching... Please wait..."):
-            result = run_multi_agent_workflow(WorkflowInput(query=query))
+            result = run_multi_agent_workflow(
+                WorkflowInput(query=query)
+            )
 
         st.write("---")
 
@@ -27,7 +29,7 @@ if start:
 
         # TAB 2 - Summary
         with tab2:
-            summary = result.get("raw_summary", {})
+            summary = result.get("summary", {})
 
             st.subheader("Executive Summary")
             st.write(summary.get("executive_summary", "No summary found."))
@@ -39,7 +41,12 @@ if start:
                     st.write(f"- {item}")
             else:
                 st.write("No action items found.")
+
         # TAB 3 - Email
         with tab3:
             st.subheader("Generated Email")
-            st.text_area(label="", value=result.get("final_email", "No email content found."), height=250)
+            st.text_area(
+                label="",
+                value=result.get("final_email", "No email content found."),
+                height=250
+            )
