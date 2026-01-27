@@ -34,14 +34,6 @@ if start:
             st.subheader("Executive Summary")
             st.write(summary.get("executive_summary", "No summary found."))
 
-            st.subheader("Action Items")
-            action_items = summary.get("action_items", [])
-            if action_items:
-                for item in action_items:
-                    st.write(f"- {item}")
-            else:
-                st.write("No action items found.")
-
         # TAB 3 - Email
         with tab3:
             st.subheader("Generated Email")

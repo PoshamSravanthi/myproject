@@ -5,21 +5,27 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# LLM
-from langchain_google_genai import ChatGoogleGenerativeAI
+# -------------------- LLM (GROQ) --------------------
 
-# Tools
-from langchain_community.tools import DuckDuckGoSearchRun, WikipediaQueryRun, ArxivQueryRun
-from langchain_community.utilities import WikipediaAPIWrapper, ArxivAPIWrapper
-from langchain_core.tools import Tool
+from langchain_groq import ChatGroq
 
-
-# -------------------- LLM --------------------
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
     temperature=0
 )
+
+# -------------------- TOOLS --------------------
+
+from langchain_community.tools import (
+    DuckDuckGoSearchRun,
+    WikipediaQueryRun,
+    ArxivQueryRun
+)
+from langchain_community.utilities import (
+    WikipediaAPIWrapper,
+    ArxivAPIWrapper
+)
+from langchain_core.tools import Tool
 
 # -------------------- INPUT MODEL --------------------
 
@@ -28,24 +34,20 @@ class WorkflowInput(BaseModel):
 
 # -------------------- TOOLS SETUP --------------------
 
-# DuckDuckGo
 search_tool = DuckDuckGoSearchRun()
 
-# Wikipedia
 wiki_wrapper = WikipediaAPIWrapper(
     top_k_results=1,
     doc_content_chars_max=1500
 )
 wiki_tool = WikipediaQueryRun(api_wrapper=wiki_wrapper)
 
-# arXiv
 arxiv_wrapper = ArxivAPIWrapper(
     top_k_results=2,
     doc_content_chars_max=2000
 )
 arxiv_tool = ArxivQueryRun(api_wrapper=arxiv_wrapper)
 
-# (Tool list kept for clarity / mentor reference)
 tools = [
     Tool(
         func=search_tool.run,
@@ -72,22 +74,19 @@ def run_multi_agent_workflow(workflow_input: WorkflowInput) -> Dict[str, Any]:
     # ===== Research Agent =====
     research_data = []
 
-    # DuckDuckGo (most reliable)
     try:
         research_data.append(search_tool.run(query))
-    except Exception as e:
+    except:
         research_data.append("DuckDuckGo search failed.")
 
-    # Wikipedia (can fail due to API limits)
     try:
         research_data.append(wiki_tool.run(query))
-    except Exception:
+    except:
         research_data.append("Wikipedia data unavailable.")
 
-    # arXiv
     try:
         research_data.append(arxiv_tool.run(query))
-    except Exception:
+    except:
         research_data.append("arXiv data unavailable.")
 
     research_output = "\n\n".join(research_data)
@@ -99,11 +98,16 @@ Convert the following research notes into structured JSON.
 Research:
 {research_output}
 
-Return JSON EXACTLY in this format:
-{{
-  "executive_summary": "...",
-  "action_items": ["...", "..."]
-}}
+Your output MUST be a valid JSON object with these keys:
+- "executive_summary": A single paragraph of max 150–250 words.
+
+Rules:
+- Write the executive summary as ONE proper paragraph.
+- Do NOT write it as a single long line without structure.
+- Do NOT use bullet points.
+- Do NOT add line breaks.
+- Do NOT include any other keys.
+- Return ONLY the JSON object.
 """
 
     summary_response = llm.invoke(summary_prompt)
@@ -111,19 +115,33 @@ Return JSON EXACTLY in this format:
 
     try:
         summary_json = json.loads(raw_summary)
-    except Exception:
+    except:
         summary_json = {
-            "executive_summary": raw_summary,
-            "action_items": []
+            "executive_summary": raw_summary
         }
 
     # ===== Email Agent =====
     email_prompt = f"""
-Write a short professional business email based on the executive summary below.
+Based on the research provided above, draft a professional business email.
 
-{summary_json["executive_summary"]}
+- Include a clear subject line.
+- Summarize the key trends from the research.
+- Suggest appropriate next steps.
+- Do not include 'Tone Recommendation' or 'Action Items' sections.
 
-Return only the email body. No greeting and no signature.
+Research:
+{research_output}
+
+Write the email in this format:
+
+Subject: [Your Subject Line]
+
+Dear [Recipient Name],
+
+[Your Email Content Here]
+
+Best regards,
+AI Research Agent
 """
 
     email_response = llm.invoke(email_prompt)
@@ -134,7 +152,7 @@ Return only the email body. No greeting and no signature.
         "final_email": email_response.content.strip()
     }
 
-# -------------------- TEST --------------------
+# -------------------- TEST RUN --------------------
 
 if __name__ == "__main__":
     result = run_multi_agent_workflow(

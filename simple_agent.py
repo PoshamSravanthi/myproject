@@ -6,6 +6,7 @@ from langchain_classic.agents import create_react_agent, AgentExecutor
 from langchain_classic import hub
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
+from langchain_groq import ChatGroq
 from langchain_community.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 
@@ -63,7 +64,11 @@ def calculator(expression: str) -> float:
 
 # -------------------- LLM --------------------
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0
+)
+
 
 # -------------------- AGENT --------------------
 
