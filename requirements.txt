@@ -1,38 +1,31 @@
+# Streamlit
+streamlit
+
 # LangChain Core
 langchain
 langchain-core
+langchain-community
 
-# OpenAI Integration
-langchain-openai
+# LLM Providers
 openai
-
-# Anthropic Integration
+langchain-openai
 langchain-anthropic
-
-# Google Gemini (PaLM) Integration
 langchain-google-genai
 google-generativeai
 
+# Search & Research tools
+duckduckgo-search
+wikipedia
+arxiv
 
-
-# Hugging Face Integration
-langchain-huggingface
+# Hugging Face
 transformers
 huggingface-hub
 sentence-transformers
-# Environment Variable Management
+
+# Environment
 python-dotenv
-ddgs
 
-
-# Machine Learning Utilities
+# Utilities
 numpy
 scikit-learn
-
-#Pytorch  --If asked to install when run the open source model from huggingface. 
-torch
-torchvision
-torchaudio
-
-#streamlit
-streamlit
