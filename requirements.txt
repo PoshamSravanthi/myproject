@@ -19,6 +19,7 @@ groq
 
 # Search & Research tools
 duckduckgo-search
+ddgs
 wikipedia
 arxiv
 

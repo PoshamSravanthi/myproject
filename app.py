@@ -17,7 +17,6 @@ llm = ChatGroq(
 # -------------------- TOOLS --------------------
 
 from langchain_community.tools import (
-    DuckDuckGoSearchRun,
     WikipediaQueryRun,
     ArxivQueryRun
 )
@@ -25,7 +24,6 @@ from langchain_community.utilities import (
     WikipediaAPIWrapper,
     ArxivAPIWrapper
 )
-from langchain_core.tools import Tool
 
 # -------------------- INPUT MODEL --------------------
 
@@ -34,37 +32,19 @@ class WorkflowInput(BaseModel):
 
 # -------------------- TOOLS SETUP --------------------
 
-search_tool = DuckDuckGoSearchRun()
-
+# Wikipedia Tool (acts as general web search)
 wiki_wrapper = WikipediaAPIWrapper(
     top_k_results=1,
     doc_content_chars_max=1500
 )
 wiki_tool = WikipediaQueryRun(api_wrapper=wiki_wrapper)
 
+# arXiv Tool (academic research)
 arxiv_wrapper = ArxivAPIWrapper(
     top_k_results=2,
     doc_content_chars_max=2000
 )
 arxiv_tool = ArxivQueryRun(api_wrapper=arxiv_wrapper)
-
-tools = [
-    Tool(
-        func=search_tool.run,
-        name="web_search",
-        description="Search the web for current and real-time information."
-    ),
-    Tool(
-        func=wiki_tool.run,
-        name="wikipedia",
-        description="Search Wikipedia for general and historical facts."
-    ),
-    Tool(
-        func=arxiv_tool.run,
-        name="arxiv_research",
-        description="Search academic and scholarly research papers."
-    )
-]
 
 # -------------------- MAIN WORKFLOW --------------------
 
@@ -75,18 +55,13 @@ def run_multi_agent_workflow(workflow_input: WorkflowInput) -> Dict[str, Any]:
     research_data = []
 
     try:
-        research_data.append(search_tool.run(query))
-    except:
-        research_data.append("DuckDuckGo search failed.")
-
-    try:
         research_data.append(wiki_tool.run(query))
-    except:
+    except Exception:
         research_data.append("Wikipedia data unavailable.")
 
     try:
         research_data.append(arxiv_tool.run(query))
-    except:
+    except Exception:
         research_data.append("arXiv data unavailable.")
 
     research_output = "\n\n".join(research_data)
@@ -103,7 +78,6 @@ Your output MUST be a valid JSON object with these keys:
 
 Rules:
 - Write the executive summary as ONE proper paragraph.
-- Do NOT write it as a single long line without structure.
 - Do NOT use bullet points.
 - Do NOT add line breaks.
 - Do NOT include any other keys.
@@ -115,7 +89,7 @@ Rules:
 
     try:
         summary_json = json.loads(raw_summary)
-    except:
+    except Exception:
         summary_json = {
             "executive_summary": raw_summary
         }
@@ -127,7 +101,7 @@ Based on the research provided above, draft a professional business email.
 - Include a clear subject line.
 - Summarize the key trends from the research.
 - Suggest appropriate next steps.
-- Do not include 'Tone Recommendation' or 'Action Items' sections.
+- Do not include extra sections.
 
 Research:
 {research_output}
