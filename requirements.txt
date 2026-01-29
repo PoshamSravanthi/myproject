@@ -18,6 +18,7 @@ langchain-groq
 groq
 
 # Search & Research tools
+tavily-python
 duckduckgo-search
 ddgs
 wikipedia

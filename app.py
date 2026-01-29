@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Dict, Any
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -16,6 +17,9 @@ llm = ChatGroq(
 
 # -------------------- TOOLS --------------------
 
+# ✅ REAL WEB SEARCH TOOL (Tavily)
+from langchain_community.tools.tavily_search import TavilySearchResults
+
 from langchain_community.tools import (
     WikipediaQueryRun,
     ArxivQueryRun
@@ -32,14 +36,20 @@ class WorkflowInput(BaseModel):
 
 # -------------------- TOOLS SETUP --------------------
 
-# Wikipedia Tool (acts as general web search)
+# ✅ Web Search Tool (Tavily)
+tavily_tool = TavilySearchResults(
+    api_key=os.getenv("TAVILY_API_KEY"),
+    max_results=3
+)
+
+# Wikipedia Tool
 wiki_wrapper = WikipediaAPIWrapper(
     top_k_results=1,
     doc_content_chars_max=1500
 )
 wiki_tool = WikipediaQueryRun(api_wrapper=wiki_wrapper)
 
-# arXiv Tool (academic research)
+# arXiv Tool
 arxiv_wrapper = ArxivAPIWrapper(
     top_k_results=2,
     doc_content_chars_max=2000
@@ -54,11 +64,19 @@ def run_multi_agent_workflow(workflow_input: WorkflowInput) -> Dict[str, Any]:
     # ===== Research Agent =====
     research_data = []
 
+    # ✅ Web search (Tavily)
+    try:
+        research_data.append(str(tavily_tool.run(query)))
+    except Exception:
+        research_data.append("Web search unavailable.")
+
+    # Wikipedia
     try:
         research_data.append(wiki_tool.run(query))
     except Exception:
         research_data.append("Wikipedia data unavailable.")
 
+    # arXiv
     try:
         research_data.append(arxiv_tool.run(query))
     except Exception:
